@@ -24,7 +24,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force project-atlas | Out-Null
           $encoded = ((0..4 | ForEach-Object { Get-Content ("project-atlas-source.part{0:D2}" -f $_) -Raw }) -join "")
-          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/=]", "")
+          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/]", "")
+          switch ($encoded.Length % 4) {
+            2 { $encoded += "==" }
+            3 { $encoded += "=" }
+            1 { throw "Invalid Base64 payload length after normalization" }
+          }
           [IO.File]::WriteAllBytes("project-atlas-source.tar.gz", [Convert]::FromBase64String($encoded))
           $actual = (Get-FileHash project-atlas-source.tar.gz -Algorithm SHA256).Hash.ToLower()
           $expected = "170e637be5e8e3736fc9fc4f2bccf7bf2588e17f957305544e898ed28865e564"
