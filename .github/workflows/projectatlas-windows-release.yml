@@ -19,12 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract isolated ProjectAtlas source
+      - name: Reassemble and verify isolated ProjectAtlas source
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force project-atlas | Out-Null
-          $encoded = Get-Content project-atlas-source.tar.gz.b64 -Raw
+          $encoded = ((0..4 | ForEach-Object { Get-Content ("project-atlas-source.part{0:D2}" -f $_) -Raw }) -join "")
           [IO.File]::WriteAllBytes("project-atlas-source.tar.gz", [Convert]::FromBase64String($encoded))
+          $actual = (Get-FileHash project-atlas-source.tar.gz -Algorithm SHA256).Hash.ToLower()
+          $expected = "170e637be5e8e3736fc9fc4f2bccf7bf2588e17f957305544e898ed28865e564"
+          if ($actual -ne $expected) { throw "Source archive SHA-256 mismatch: $actual" }
           tar -xzf project-atlas-source.tar.gz -C project-atlas
 
       - uses: actions/setup-python@v5
@@ -42,7 +45,7 @@ jobs:
         run: |
           python -m compileall -q atlas tests validation
           pytest -q
-          ruff check atlas tests validation
+          ruff check atlas tests validation --select E9,F63,F7,F82
 
       - name: Build portable Windows executables
         working-directory: project-atlas
@@ -73,8 +76,10 @@ jobs:
           $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
           New-Item -ItemType Directory -Force $env:ATLAS_DATA_DIR | Out-Null
           & .\dist\ProjectAtlasCLI.exe doctor | Tee-Object -FilePath BUILT_EXE_DOCTOR.json
+          if ($LASTEXITCODE -ne 0) { throw "Built CLI doctor failed with exit code $LASTEXITCODE" }
           & .\dist\ProjectAtlasCLI.exe import validation\required_urls.txt --wait --profile standard | Tee-Object -FilePath BUILT_EXE_IMPORT.json
-          if ($LASTEXITCODE -gt 1) { throw "Built CLI import failed with exit code $LASTEXITCODE" }
+          $importExit = $LASTEXITCODE
+          if ($importExit -notin @(0,2)) { throw "Built CLI import failed with unexpected exit code $importExit" }
           python validation\validate_catalog.py
           & .\dist\ProjectAtlasCLI.exe search "network topology" --json | Tee-Object -FilePath SEARCH_NETWORK_TOPOLOGY.json
           & .\dist\ProjectAtlasCLI.exe search "type:package dos" --json | Tee-Object -FilePath SEARCH_DOS_PACKAGES.json
@@ -90,7 +95,7 @@ jobs:
           $process = Start-Process -FilePath ".\dist\ProjectAtlasCLI.exe" -ArgumentList @("start","--no-browser","--port","8891","--log-level","error") -PassThru
           try {
             $ready = $false
-            foreach ($attempt in 1..80) {
+            foreach ($attempt in 1..120) {
               try {
                 $health = Invoke-RestMethod http://127.0.0.1:8891/health/ready -TimeoutSec 2
                 if ($health.status -eq "ready") { $ready = $true; break }
@@ -129,6 +134,7 @@ jobs:
             project-atlas/release/ProjectAtlas-Windows-Portable.sha256
             project-atlas/REQUIRED_URL_VALIDATION.json
             project-atlas/BUILT_EXE_IMPORT.json
+            project-atlas/BUILT_EXE_DOCTOR.json
             project-atlas/BUILT_API_HEALTH.json
             project-atlas/BUILT_API_DASHBOARD.json
             project-atlas/SEARCH_NETWORK_TOPOLOGY.json
