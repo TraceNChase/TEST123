@@ -3,10 +3,14 @@ name: ProjectAtlas Windows portable release
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - run-final-windows-build.txt
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-build-and-live-test:
@@ -164,3 +168,26 @@ jobs:
             project-atlas/SEARCH_PRIVACY.json
             project-atlas/SEARCH_AFTONBLADET.json
           if-no-files-found: error
+
+      - name: Publish machine-readable run status
+        if: always() && github.event_name == 'push'
+        shell: pwsh
+        env:
+          FINAL_JOB_STATUS: ${{ job.status }}
+        run: |
+          New-Item -ItemType Directory -Force build-status | Out-Null
+          $payload = [ordered]@{
+            run_id = "${{ github.run_id }}"
+            run_attempt = "${{ github.run_attempt }}"
+            workflow = "${{ github.workflow }}"
+            commit = "${{ github.sha }}"
+            status = $env:FINAL_JOB_STATUS
+            artifact_name = "ProjectAtlas-Windows-Portable"
+            generated_at = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $payload | ConvertTo-Json | Set-Content build-status/final.json -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-status/final.json
+          git commit -m "Record ProjectAtlas Windows run ${{ github.run_id }}" || echo "No status change"
+          git push
