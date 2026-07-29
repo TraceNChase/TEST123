@@ -1,0 +1,164 @@
+name: ProjectAtlas final Windows v4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - run-final-windows-v4.txt
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ATLAS_DISABLE_SCHEDULER: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct verified source ZIP
+        shell: pwsh
+        run: |
+          $checks = @{
+            "source-v2/part03a1b1_0" = "4ec1df75833a118c59aa4b9f5adbe28d442a34f512fb0b9b1ff81af186f0dac9"
+            "source-v2/part03a1b1_1" = "5a44ca522b62a2d357150df88b8052ac17064a1b13f603ee45ea032ecacad1c9"
+            "source-v2/part03a1b1_2" = "1b7fa3b56c941a847a080e90234a6dce7e96191a876c2217f1ab45d1d34e5f73"
+            "source-v2/part03a1b1_3" = "5f4d4af1d2abcd0a366037329570ce39afb1a3802b5837fec7525194679e260a"
+            "source-v2/part03a1b2_0" = "bcc4079c8823c157a7f82632129bd78e1b05d390a582d87f4790e7742fc91957"
+            "source-v2/part03a1b2_1" = "bd05af02b2a801ab5bfdef98917ab0cf9967a1bf11c2b42d505333e0f85e693d"
+            "source-v2/part03a1b2_2" = "0fdd0b2da193daa4272e8df06f319727e235f794f6607d830e02adecfc2bbd15"
+            "source-v2/part03a1b2_3" = "fe03d7bd1ac72590090702b5345868376a8c83837caf758a13a9fcbfc9c56895"
+          }
+          foreach ($path in $checks.Keys) {
+            $h = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower()
+            if ($h -ne $checks[$path]) { throw "Fragment hash mismatch for ${path}: $h" }
+          }
+          $parts = @(
+            "source-v2/part00","source-v2/part01","source-v2/part05","source-v2/part06",
+            "source-v2/part07a","source-v2/part07b","source-v2/part02a",
+            "source-v2/part02b1","source-v2/part02b2","source-v2/part03a1a",
+            "source-v2/part03a1b1_0","source-v2/part03a1b1_1","source-v2/part03a1b1_2","source-v2/part03a1b1_3",
+            "source-v2/part03a1b2_0","source-v2/part03a1b2_1","source-v2/part03a1b2_2","source-v2/part03a1b2_3",
+            "source-v2/part03a2","source-v2/part03b","source-v2/part04"
+          )
+          $encoded = (($parts | ForEach-Object { Get-Content $_ -Raw }) -join "")
+          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/]", "")
+          switch ($encoded.Length % 4) { 2 {$encoded += "=="}; 3 {$encoded += "="}; 1 {throw "Invalid Base64 length"} }
+          [IO.File]::WriteAllBytes("ProjectAtlas-Windows-Source.zip", [Convert]::FromBase64String($encoded))
+          $actual = (Get-FileHash ProjectAtlas-Windows-Source.zip -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne "8bb327679194012cb8ba6fd2e1ec6025bd84c2a5e92cb66db9aa3df092c35157") { throw "Source ZIP SHA-256 mismatch: $actual" }
+          New-Item -ItemType Directory -Force project-atlas | Out-Null
+          Expand-Archive ProjectAtlas-Windows-Source.zip project-atlas -Force
+          if (!(Test-Path project-atlas\atlas\cli.py)) { throw "Missing atlas/cli.py" }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: project-atlas/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: project-atlas
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+
+      - name: Verify source
+        working-directory: project-atlas
+        run: |
+          python -m compileall -q atlas tests validation
+          pytest -q
+          ruff check atlas tests validation --select E9,F63,F7,F82
+
+      - name: Build Windows executables
+        working-directory: project-atlas
+        shell: pwsh
+        run: |
+          $common = @("--noconfirm","--clean","--onefile","--add-data","atlas/static;atlas/static","--hidden-import","atlas.main","--hidden-import","uvicorn.logging","--hidden-import","uvicorn.loops.auto","--hidden-import","uvicorn.protocols.http.auto","--hidden-import","uvicorn.protocols.websockets.auto","--hidden-import","uvicorn.lifespan.on","--collect-all","uvicorn","--collect-all","sqlalchemy","--collect-all","pydantic")
+          python -m PyInstaller @common --name ProjectAtlasCLI atlas/cli.py
+          python -m PyInstaller @common --windowed --name ProjectAtlas atlas/gui_entry.py
+          if (!(Test-Path dist\ProjectAtlasCLI.exe)) { throw "CLI executable missing" }
+          if (!(Test-Path dist\ProjectAtlas.exe)) { throw "GUI executable missing" }
+
+      - name: Analyze all required URLs with built CLI
+        working-directory: project-atlas
+        shell: pwsh
+        run: |
+          $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
+          New-Item -ItemType Directory -Force $env:ATLAS_DATA_DIR | Out-Null
+          & .\dist\ProjectAtlasCLI.exe doctor | Tee-Object BUILT_EXE_DOCTOR.json
+          if ($LASTEXITCODE -ne 0) { throw "doctor failed: $LASTEXITCODE" }
+          & .\dist\ProjectAtlasCLI.exe import validation\required_urls.txt --wait --profile standard | Tee-Object BUILT_EXE_IMPORT.json
+          if ($LASTEXITCODE -notin @(0,2)) { throw "import failed: $LASTEXITCODE" }
+          python validation\validate_catalog.py
+          & .\dist\ProjectAtlasCLI.exe search "network topology" --json | Tee-Object SEARCH_NETWORK_TOPOLOGY.json
+          & .\dist\ProjectAtlasCLI.exe search "type:package dos" --json | Tee-Object SEARCH_DOS_PACKAGES.json
+          & .\dist\ProjectAtlasCLI.exe search "privacy guides" --json | Tee-Object SEARCH_PRIVACY.json
+          & .\dist\ProjectAtlasCLI.exe search "aftonbladet" --json | Tee-Object SEARCH_AFTONBLADET.json
+          & .\dist\ProjectAtlasCLI.exe ai-export --format jsonl --output AI_EXPORT.jsonl
+
+      - name: Verify built GUI and API
+        working-directory: project-atlas
+        shell: pwsh
+        run: |
+          $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
+          $p = Start-Process .\dist\ProjectAtlasCLI.exe -ArgumentList @("start","--no-browser","--port","8891","--log-level","error") -PassThru
+          try {
+            $ready = $false
+            foreach ($i in 1..160) {
+              try { $h = Invoke-RestMethod http://127.0.0.1:8891/health/ready -TimeoutSec 2; if ($h.status -eq "ready") {$ready=$true;break} } catch { Start-Sleep -Milliseconds 250 }
+            }
+            if (!$ready) { throw "API did not become ready" }
+            Invoke-RestMethod http://127.0.0.1:8891/health/live | ConvertTo-Json -Depth 10 | Set-Content BUILT_API_HEALTH.json -Encoding utf8
+            Invoke-RestMethod http://127.0.0.1:8891/v1/dashboard | ConvertTo-Json -Depth 20 | Set-Content BUILT_API_DASHBOARD.json -Encoding utf8
+            $html = Invoke-WebRequest http://127.0.0.1:8891/ -UseBasicParsing
+            if ($html.Content -notmatch "ProjectAtlas") { throw "GUI index missing" }
+            $js = Invoke-WebRequest http://127.0.0.1:8891/assets/app.js -UseBasicParsing
+            if ($js.Content -notmatch "AI-optimerad export") { throw "GUI bundle missing" }
+          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - name: Assemble portable release
+        working-directory: project-atlas
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release\ProjectAtlas | Out-Null
+          Copy-Item dist\ProjectAtlas.exe,dist\ProjectAtlasCLI.exe release\ProjectAtlas\
+          Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md release\ProjectAtlas\
+          Copy-Item REQUIRED_URL_VALIDATION.json,BUILT_EXE_DOCTOR.json,BUILT_EXE_IMPORT.json,BUILT_API_HEALTH.json,BUILT_API_DASHBOARD.json release\ProjectAtlas\
+          Copy-Item SEARCH_NETWORK_TOPOLOGY.json,SEARCH_DOS_PACKAGES.json,SEARCH_PRIVACY.json,SEARCH_AFTONBLADET.json,AI_EXPORT.jsonl release\ProjectAtlas\
+          Compress-Archive release\ProjectAtlas release\ProjectAtlas-Windows-Portable.zip -Force
+          Get-FileHash release\ProjectAtlas-Windows-Portable.zip -Algorithm SHA256 | ForEach-Object { $_.Hash.ToLower() + "  ProjectAtlas-Windows-Portable.zip" } | Set-Content release\ProjectAtlas-Windows-Portable.sha256
+
+      - name: Upload release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjectAtlas-Windows-Portable
+          path: |
+            project-atlas/release/ProjectAtlas-Windows-Portable.zip
+            project-atlas/release/ProjectAtlas-Windows-Portable.sha256
+            project-atlas/REQUIRED_URL_VALIDATION.json
+            project-atlas/BUILT_EXE_IMPORT.json
+            project-atlas/BUILT_EXE_DOCTOR.json
+            project-atlas/BUILT_API_HEALTH.json
+            project-atlas/BUILT_API_DASHBOARD.json
+            project-atlas/SEARCH_NETWORK_TOPOLOGY.json
+            project-atlas/SEARCH_DOS_PACKAGES.json
+            project-atlas/SEARCH_PRIVACY.json
+            project-atlas/SEARCH_AFTONBLADET.json
+          if-no-files-found: error
+
+      - name: Publish final status
+        if: always()
+        shell: pwsh
+        env:
+          FINAL_JOB_STATUS: ${{ job.status }}
+        run: |
+          New-Item -ItemType Directory -Force build-status | Out-Null
+          [ordered]@{run_id="${{ github.run_id }}";attempt="${{ github.run_attempt }}";status=$env:FINAL_JOB_STATUS;commit="${{ github.sha }}";artifact="ProjectAtlas-Windows-Portable";generated_at=(Get-Date).ToUniversalTime().ToString("o")} | ConvertTo-Json | Set-Content build-status/final-v4.json -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-status/final-v4.json
+          git commit -m "Record final Windows v4 run ${{ github.run_id }}" || echo "No status change"
+          git push
