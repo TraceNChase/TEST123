@@ -1,0 +1,28 @@
+name: ProjectAtlas repair part03a1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - run-repair-part03a1.txt
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild part03a1 from verified quarters
+        shell: pwsh
+        run: |
+          $value = (Get-Content source-v2/part03a1a -Raw) + (Get-Content source-v2/part03a1b -Raw)
+          [IO.File]::WriteAllText((Resolve-Path source-v2).Path + '\part03a1', $value, [Text.Encoding]::ASCII)
+          $actual = (Get-FileHash source-v2/part03a1 -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne '906650397cc1641f143dfa2d5215122887124239d80b07855a655268cfaf4e1c') { throw "part03a1 hash mismatch: $actual" }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source-v2/part03a1
+          git commit -m "Repair ProjectAtlas part03a1"
+          git push
