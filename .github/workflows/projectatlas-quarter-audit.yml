@@ -1,0 +1,32 @@
+name: ProjectAtlas quarter audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - run-quarter-audit.txt
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: |
+          $expected=[ordered]@{
+            'source-v2/part03a1a'='183e7a677534e2ab64c3bbb1fe4e017f997cfd91c1035db9650b0e6d8a8d7efb'
+            'source-v2/part03a1b'='863c16d36a811acb219e341868cfd43f2a55edacb14ceb6983fd21abfe4b7a79'
+          }
+          $results=@();$ok=$true
+          foreach($p in $expected.Keys){$a=(Get-FileHash $p -Algorithm SHA256).Hash.ToLower();$m=$a -eq $expected[$p];if(!$m){$ok=$false};$results+=[ordered]@{path=$p;length=(Get-Item $p).Length;expected=$expected[$p];actual=$a;match=$m}}
+          New-Item -ItemType Directory -Force build-status|Out-Null
+          [ordered]@{run_id='${{ github.run_id }}';ok=$ok;results=$results}|ConvertTo-Json -Depth 5|Set-Content build-status/quarter-audit.json -Encoding utf8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add build-status/quarter-audit.json
+          git commit -m 'Record quarter audit ${{ github.run_id }}'
+          git push
+          if(!$ok){throw 'Quarter audit failed'}
