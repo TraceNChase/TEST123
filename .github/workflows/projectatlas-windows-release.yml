@@ -32,7 +32,7 @@ jobs:
           }
           [IO.File]::WriteAllBytes("project-atlas-source.tar.gz", [Convert]::FromBase64String($encoded))
           $actual = (Get-FileHash project-atlas-source.tar.gz -Algorithm SHA256).Hash.ToLower()
-          $expected = "170e637be5e8e3736fc9fc4f2bccf7bf2588e17f957305544e898ed28865e564"
+          $expected = "dbe417a178b71cd7f07aa11787d32b5af889444e69d8cb6c1e92c677ab99c081"
           if ($actual -ne $expected) { throw "Source archive SHA-256 mismatch: $actual" }
           tar -xzf project-atlas-source.tar.gz -C project-atlas
 
