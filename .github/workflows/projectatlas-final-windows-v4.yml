@@ -123,6 +123,8 @@ jobs:
         working-directory: project-atlas
         shell: pwsh
         run: |
+          $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
+          if (!(Test-Path REQUIRED_URL_VALIDATION.json)) { python validation\validate_catalog.py }
           New-Item -ItemType Directory -Force release\ProjectAtlas | Out-Null
           Copy-Item dist\ProjectAtlas.exe,dist\ProjectAtlasCLI.exe release\ProjectAtlas\
           Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md release\ProjectAtlas\
