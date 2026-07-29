@@ -87,12 +87,14 @@ jobs:
         shell: pwsh
         run: |
           $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
+          $env:PYTHONPATH = (Get-Location).Path
           New-Item -ItemType Directory -Force $env:ATLAS_DATA_DIR | Out-Null
           & .\dist\ProjectAtlasCLI.exe doctor | Tee-Object BUILT_EXE_DOCTOR.json
           if ($LASTEXITCODE -ne 0) { throw "doctor failed: $LASTEXITCODE" }
           & .\dist\ProjectAtlasCLI.exe import validation\required_urls.txt --wait --profile standard | Tee-Object BUILT_EXE_IMPORT.json
           if ($LASTEXITCODE -notin @(0,2)) { throw "import failed: $LASTEXITCODE" }
           python validation\validate_catalog.py
+          if ($LASTEXITCODE -ne 0) { throw "catalog validation failed: $LASTEXITCODE" }
           & .\dist\ProjectAtlasCLI.exe search "network topology" --json | Tee-Object SEARCH_NETWORK_TOPOLOGY.json
           & .\dist\ProjectAtlasCLI.exe search "type:package dos" --json | Tee-Object SEARCH_DOS_PACKAGES.json
           & .\dist\ProjectAtlasCLI.exe search "privacy guides" --json | Tee-Object SEARCH_PRIVACY.json
@@ -124,7 +126,11 @@ jobs:
         shell: pwsh
         run: |
           $env:ATLAS_DATA_DIR = "$env:RUNNER_TEMP\projectatlas-live-data"
-          if (!(Test-Path REQUIRED_URL_VALIDATION.json)) { python validation\validate_catalog.py }
+          $env:PYTHONPATH = (Get-Location).Path
+          if (!(Test-Path REQUIRED_URL_VALIDATION.json)) {
+            python validation\validate_catalog.py
+            if ($LASTEXITCODE -ne 0) { throw "catalog validation regeneration failed: $LASTEXITCODE" }
+          }
           New-Item -ItemType Directory -Force release\ProjectAtlas | Out-Null
           Copy-Item dist\ProjectAtlas.exe,dist\ProjectAtlasCLI.exe release\ProjectAtlas\
           Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md release\ProjectAtlas\
