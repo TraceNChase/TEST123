@@ -21,7 +21,8 @@ jobs:
       - name: Extract isolated ProjectAtlas source bundle
         run: |
           mkdir project-atlas
-          unzip -q project-atlas-source.zip -d project-atlas
+          base64 --decode project-atlas-min.b64 > project-atlas-min.tar.gz
+          tar -xzf project-atlas-min.tar.gz -C project-atlas
 
       - uses: actions/setup-python@v5
         with:
