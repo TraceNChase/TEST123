@@ -1,1 +1,1 @@
-Trigger Windows build from the byte-verified ProjectAtlas source ZIP.
+Trigger Windows build after canonical Base64 padding normalization.
