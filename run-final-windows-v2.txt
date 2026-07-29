@@ -1,0 +1,1 @@
+Run final ProjectAtlas Windows build using only byte-verified source halves. Nonce 2026-07-29T13:04Z.
