@@ -1,8 +1,8 @@
 {
-  "run_id": "30457044848",
+  "run_id": "30457512273",
   "attempt": "1",
   "status": "failure",
-  "commit": "57ebac02be4cdb7e5f2710899d09931bc3c19c17",
+  "commit": "dff3d17fc980099cb03619461bbb746b98aea958",
   "artifact": "ProjectAtlas-Windows-Portable",
-  "generated_at": "2026-07-29T13:43:26.1622246Z"
+  "generated_at": "2026-07-29T13:49:39.6509418Z"
 }
