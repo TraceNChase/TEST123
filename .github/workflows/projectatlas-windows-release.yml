@@ -23,27 +23,25 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force project-atlas | Out-Null
-          New-Item -ItemType Directory -Force project-atlas-stage | Out-Null
-          $encoded = ((0..4 | ForEach-Object { Get-Content ("project-atlas-source.part{0:D2}" -f $_) -Raw }) -join "")
-          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/]", "")
-          switch ($encoded.Length % 4) {
-            2 { $encoded += "==" }
-            3 { $encoded += "=" }
-            1 { throw "Invalid Base64 payload length after normalization" }
-          }
-          [IO.File]::WriteAllBytes("project-atlas-source.tar.gz", [Convert]::FromBase64String($encoded))
-          $actual = (Get-FileHash project-atlas-source.tar.gz -Algorithm SHA256).Hash.ToLower()
-          $expected = "dbe417a178b71cd7f07aa11787d32b5af889444e69d8cb6c1e92c677ab99c081"
-          if ($actual -ne $expected) { throw "Source archive SHA-256 mismatch: $actual" }
-          Write-Host "Verified source payload: $actual"
-          & 7z x project-atlas-source.tar.gz "-oproject-atlas-stage" -y
-          if ($LASTEXITCODE -ne 0) { throw "Could not decompress the verified gzip payload" }
-          $inner = Get-ChildItem project-atlas-stage -File | Select-Object -First 1
-          if (!$inner) { throw "The gzip payload did not contain an inner archive" }
-          Write-Host "Inner payload: $($inner.Name), $($inner.Length) bytes"
-          Format-Hex -Path $inner.FullName -Count 64
-          & 7z x $inner.FullName "-oproject-atlas" -y
-          if ($LASTEXITCODE -ne 0) { throw "Could not extract inner source payload $($inner.Name)" }
+          $parts = @(
+            "source-v2/part00",
+            "source-v2/part01",
+            "source-v2/part05",
+            "source-v2/part06",
+            "source-v2/part07a",
+            "source-v2/part07b",
+            "source-v2/part02",
+            "source-v2/part03",
+            "source-v2/part04"
+          )
+          $encoded = (($parts | ForEach-Object { Get-Content $_ -Raw }) -join "")
+          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/=]", "")
+          [IO.File]::WriteAllBytes("ProjectAtlas-Windows-Source.zip", [Convert]::FromBase64String($encoded))
+          $actual = (Get-FileHash ProjectAtlas-Windows-Source.zip -Algorithm SHA256).Hash.ToLower()
+          $expected = "8bb327679194012cb8ba6fd2e1ec6025bd84c2a5e92cb66db9aa3df092c35157"
+          if ($actual -ne $expected) { throw "Source ZIP SHA-256 mismatch: $actual" }
+          Write-Host "Verified source ZIP: $actual"
+          Expand-Archive -Path ProjectAtlas-Windows-Source.zip -DestinationPath project-atlas -Force
           if (!(Test-Path project-atlas\requirements-dev.txt)) { throw "Extracted source tree is missing requirements-dev.txt" }
           if (!(Test-Path project-atlas\atlas\cli.py)) { throw "Extracted source tree is missing atlas/cli.py" }
 
