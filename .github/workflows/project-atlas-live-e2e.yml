@@ -18,10 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Decode isolated ProjectAtlas source bundle
+      - name: Extract isolated ProjectAtlas source bundle
         run: |
           mkdir project-atlas
-          base64 --decode project-atlas-source.b64 > project-atlas-source.zip
           unzip -q project-atlas-source.zip -d project-atlas
 
       - uses: actions/setup-python@v5
