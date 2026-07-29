@@ -1,0 +1,48 @@
+name: ProjectAtlas final source audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - run-source-audit-final.txt
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify every source segment
+        shell: pwsh
+        run: |
+          $expected = [ordered]@{
+            "source-v2/part00" = "f350ceb72227f5d996711505cb27f48abdcb40813646e82c618b5b64c54e948a"
+            "source-v2/part01" = "d636225735e792b2ded6a2c4f929013acde4da0545c17081682926ab90640ad7"
+            "source-v2/part05" = "9a8c898dbc0e189b1470cf2de40f296f83f7bad45b49e77d8cdcfea2b96dea47"
+            "source-v2/part06" = "f04bba2cf49248bca20d1e3e5e38e398f09f339bc3fcc87effe7eb46fceab8b7"
+            "source-v2/part07a" = "644a87cb01b991355741c3d8e85b74dd0a8d6f737bbc9e6074f43975406e96eb"
+            "source-v2/part07b" = "1eaa4fd2fa47ef41b5b516f75a6e391264f2c85247a3be08a54c0e93c1b976cd"
+            "source-v2/part02a" = "5e3a559ede40a0f7f0acac7eee0de87fa7dfb4db2ab96a74250aaa83acc9100f"
+            "source-v2/part02b" = "97c4727356088e9c058bb0b9193cf61a3418fe3583996df98f166f8824e53eac"
+            "source-v2/part03a" = "1188413628cf74f394a5e0c1d3cfc0080e9daf3458ba88fc4399b173fb55fa80"
+            "source-v2/part03b" = "c05c52a0a3a6bcd9463039c1fcff884540ebd264acf17bbcd9e4535989627a23"
+            "source-v2/part04" = "bcd8fa255223571446a7c966eb03901ac6466b859c348148987a6ce5fbcdf638"
+          }
+          $results = @()
+          $ok = $true
+          foreach ($path in $expected.Keys) {
+            $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower()
+            $match = $actual -eq $expected[$path]
+            if (!$match) { $ok = $false }
+            $results += [ordered]@{ path=$path; length=(Get-Item $path).Length; expected=$expected[$path]; actual=$actual; match=$match }
+          }
+          New-Item -ItemType Directory -Force build-status | Out-Null
+          [ordered]@{ run_id="${{ github.run_id }}"; ok=$ok; results=$results } | ConvertTo-Json -Depth 5 | Set-Content build-status/source-audit.json -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-status/source-audit.json
+          git commit -m "Record source audit ${{ github.run_id }}"
+          git push
+          if (!$ok) { throw "One or more source segments failed byte verification" }
