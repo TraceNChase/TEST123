@@ -1,1 +1,1 @@
-Rebuild part02b and part03a from verified 3500-character halves. Retry nonce 2026-07-29T12:50Z.
+Rebuild part02b and part03a from all four verified halves. Final nonce 2026-07-29T12:56Z.
