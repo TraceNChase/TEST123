@@ -1,0 +1,1 @@
+Trigger Windows build after locking the connector-transport archive hash.
