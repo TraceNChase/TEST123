@@ -35,7 +35,12 @@ jobs:
             "source-v2/part04"
           )
           $encoded = (($parts | ForEach-Object { Get-Content $_ -Raw }) -join "")
-          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/=]", "")
+          $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/]", "")
+          switch ($encoded.Length % 4) {
+            2 { $encoded += "==" }
+            3 { $encoded += "=" }
+            1 { throw "Invalid Base64 length after normalization: $($encoded.Length)" }
+          }
           [IO.File]::WriteAllBytes("ProjectAtlas-Windows-Source.zip", [Convert]::FromBase64String($encoded))
           $actual = (Get-FileHash ProjectAtlas-Windows-Source.zip -Algorithm SHA256).Hash.ToLower()
           $expected = "8bb327679194012cb8ba6fd2e1ec6025bd84c2a5e92cb66db9aa3df092c35157"
