@@ -1,1 +1,1 @@
-Trigger Windows build after locking the connector-transport archive hash.
+Trigger Windows rebuild after replacing tar assumptions with verified 7-Zip format detection.
