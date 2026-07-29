@@ -1,1 +1,1 @@
-Trigger Windows build after canonical Base64 padding normalization.
+Trigger byte-level source part audit before the next Windows build.
