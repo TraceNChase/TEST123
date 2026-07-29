@@ -1,0 +1,9 @@
+{
+  "run_id": "30451768355",
+  "run_attempt": "1",
+  "workflow": "ProjectAtlas Windows portable release",
+  "commit": "5f0d65809aef527310fa9e2e571645433026b9a7",
+  "status": "failure",
+  "artifact_name": "ProjectAtlas-Windows-Portable",
+  "generated_at": "2026-07-29T12:29:05.8615946Z"
+}
