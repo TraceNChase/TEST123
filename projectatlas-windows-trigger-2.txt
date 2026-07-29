@@ -1,0 +1,1 @@
+Trigger Windows release validation after source transport normalization.
