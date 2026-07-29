@@ -1,0 +1,36 @@
+name: ProjectAtlas source part audit
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit source parts
+        shell: pwsh
+        run: |
+          $expected = @{
+            "source-v2/part00" = "f350ceb72227f5d996711505cb27f48abdcb40813646e82c618b5b64c54e948a"
+            "source-v2/part01" = "d636225735e792b2ded6a2c4f929013acde4da0545c17081682926ab90640ad7"
+            "source-v2/part05" = "9a8c898dbc0e189b1470cf2de40f296f83f7bad45b49e77d8cdcfea2b96dea47"
+            "source-v2/part06" = "f04bba2cf49248bca20d1e3e5e38e398f09f339bc3fcc87effe7eb46fceab8b7"
+            "source-v2/part07a" = "644a87cb01b991355741c3d8e85b74dd0a8d6f737bbc9e6074f43975406e96eb"
+            "source-v2/part07b" = "1eaa4fd2fa47ef41b5b516f75a6e391264f2c85247a3be08a54c0e93c1b976cd"
+            "source-v2/part02" = "485a352af09f5c96830e52a076cf6be5cf11e8709cf8e4ddd467a17ba0798521"
+            "source-v2/part03" = "57d55253a5442f14e08f5399abfbe082394cb08fb0473a6b9a590b40f8da346b"
+            "source-v2/part04" = "bcd8fa255223571446a7c966eb03901ac6466b859c348148987a6ce5fbcdf638"
+          }
+          $failed = $false
+          foreach ($path in $expected.Keys | Sort-Object) {
+            $bytes = [IO.File]::ReadAllBytes($path)
+            $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower()
+            Write-Host "$path length=$($bytes.Length) expected=$($expected[$path]) actual=$actual"
+            if ($actual -ne $expected[$path]) { $failed = $true }
+          }
+          if ($failed) { throw "One or more source parts differ from the verified local source" }
