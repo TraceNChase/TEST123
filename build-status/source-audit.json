@@ -1,5 +1,5 @@
 {
-  "run_id": "30452030136",
+  "run_id": "30452192929",
   "ok": false,
   "results": [
     {
@@ -53,16 +53,16 @@
     },
     {
       "path": "source-v2/part02b",
-      "length": 7001,
+      "length": 7000,
       "expected": "97c4727356088e9c058bb0b9193cf61a3418fe3583996df98f166f8824e53eac",
-      "actual": "4c52c5bc7b71f6e5641daac46da0c031ebc4a6368c3d70bd554f682d9d50d02c",
-      "match": false
+      "actual": "97c4727356088e9c058bb0b9193cf61a3418fe3583996df98f166f8824e53eac",
+      "match": true
     },
     {
       "path": "source-v2/part03a",
-      "length": 7000,
+      "length": 6999,
       "expected": "1188413628cf74f394a5e0c1d3cfc0080e9daf3458ba88fc4399b173fb55fa80",
-      "actual": "161cd8b0b7094302971596547668f966546777052a46ccaf550ace0d7a77f499",
+      "actual": "b41eb2b877d633948110cca92b9117914cf7b610fd575cd8dc066cbf90394aef",
       "match": false
     },
     {
