@@ -1,0 +1,57 @@
+name: ProjectAtlas external live E2E
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ATLAS_LIVE_RESULT: live-e2e-results.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode isolated ProjectAtlas source bundle
+        run: |
+          mkdir project-atlas
+          base64 --decode project-atlas-source.b64 > project-atlas-source.zip
+          unzip -q project-atlas-source.zip -d project-atlas
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: project-atlas/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: project-atlas
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+
+      - name: Deterministic tests
+        working-directory: project-atlas
+        run: make verify
+
+      - name: Internet diagnostics
+        working-directory: project-atlas
+        run: python scripts/doctor.py | tee network-doctor-live.json
+
+      - name: Real live end-to-end validation
+        working-directory: project-atlas
+        run: python validation/live_e2e.py
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-atlas-live-evidence
+          path: |
+            project-atlas/live-e2e-results.json
+            project-atlas/network-doctor-live.json
+          if-no-files-found: warn
