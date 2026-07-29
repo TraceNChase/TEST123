@@ -1,0 +1,1 @@
+Rebuild part02b and part03a from verified 3500-character halves. Nonce 2026-07-29T12:48Z.
