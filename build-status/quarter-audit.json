@@ -1,0 +1,20 @@
+{
+  "run_id": "30452912453",
+  "ok": false,
+  "results": [
+    {
+      "path": "source-v2/part03a1a",
+      "length": 1750,
+      "expected": "183e7a677534e2ab64c3bbb1fe4e017f997cfd91c1035db9650b0e6d8a8d7efb",
+      "actual": "183e7a677534e2ab64c3bbb1fe4e017f997cfd91c1035db9650b0e6d8a8d7efb",
+      "match": true
+    },
+    {
+      "path": "source-v2/part03a1b",
+      "length": 1750,
+      "expected": "863c16d36a811acb219e341868cfd43f2a55edacb14ceb6983fd21abfe4b7a79",
+      "actual": "c52eab95f3153283c1ec67772349cf15cdddc72171834070be24607e25113a63",
+      "match": false
+    }
+  ]
+}
