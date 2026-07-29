@@ -1,0 +1,44 @@
+name: ProjectAtlas KivyMD live run
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-project-atlas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract isolated ProjectAtlas source
+        run: |
+          mkdir project-atlas
+          base64 --decode project-atlas-kivymd-source.b64 > project-atlas-source.tar.gz
+          tar -xzf project-atlas-source.tar.gz -C project-atlas
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: project-atlas/requirements-dev.txt
+      - name: Install dependencies
+        working-directory: project-atlas
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+      - name: Run deterministic tests
+        working-directory: project-atlas
+        run: make verify
+      - name: Run KivyMD entirely through ProjectAtlas
+        working-directory: project-atlas
+        run: python validation/kivymd_run.py
+      - name: Upload program-generated result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-atlas-kivymd-result
+          path: |
+            project-atlas/kivymd-program-result.json
+            project-atlas/kivymd-program-view.html
+          if-no-files-found: error
