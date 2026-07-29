@@ -1,0 +1,1 @@
+Trigger release validation with final Base64 boundary normalization.
