@@ -1,0 +1,32 @@
+name: ProjectAtlas repair source parts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - run-source-repair.txt
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild long source parts from verified halves
+        shell: pwsh
+        run: |
+          $p02 = (Get-Content source-v2/part02b1 -Raw) + (Get-Content source-v2/part02b2 -Raw)
+          $p03 = (Get-Content source-v2/part03a1 -Raw) + (Get-Content source-v2/part03a2 -Raw)
+          [IO.File]::WriteAllText((Resolve-Path source-v2).Path + '\part02b', $p02, [Text.Encoding]::ASCII)
+          [IO.File]::WriteAllText((Resolve-Path source-v2).Path + '\part03a', $p03, [Text.Encoding]::ASCII)
+          $h02 = (Get-FileHash source-v2/part02b -Algorithm SHA256).Hash.ToLower()
+          $h03 = (Get-FileHash source-v2/part03a -Algorithm SHA256).Hash.ToLower()
+          if ($h02 -ne '97c4727356088e9c058bb0b9193cf61a3418fe3583996df98f166f8824e53eac') { throw "part02b hash mismatch: $h02" }
+          if ($h03 -ne '1188413628cf74f394a5e0c1d3cfc0080e9daf3458ba88fc4399b173fb55fa80') { throw "part03a hash mismatch: $h03" }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source-v2/part02b source-v2/part03a
+          git commit -m "Repair ProjectAtlas source transport parts"
+          git push
