@@ -116,7 +116,7 @@ jobs:
             $html = Invoke-WebRequest http://127.0.0.1:8891/ -UseBasicParsing
             if ($html.Content -notmatch "ProjectAtlas") { throw "GUI index missing" }
             $js = Invoke-WebRequest http://127.0.0.1:8891/assets/app.js -UseBasicParsing
-            if ($js.Content -notmatch "AI-optimerad export") { throw "GUI bundle missing" }
+            if ($js.Content -notmatch "runSearch") { throw "GUI JavaScript bundle missing" }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - name: Assemble portable release
