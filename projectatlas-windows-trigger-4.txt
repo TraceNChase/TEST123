@@ -1,1 +1,1 @@
-Trigger byte-level source part audit before the next Windows build.
+Trigger Windows build with verified split segments and final source ZIP hash validation.
