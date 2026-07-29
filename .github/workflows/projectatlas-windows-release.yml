@@ -30,8 +30,10 @@ jobs:
             "source-v2/part06",
             "source-v2/part07a",
             "source-v2/part07b",
-            "source-v2/part02",
-            "source-v2/part03",
+            "source-v2/part02a",
+            "source-v2/part02b",
+            "source-v2/part03a",
+            "source-v2/part03b",
             "source-v2/part04"
           )
           $encoded = (($parts | ForEach-Object { Get-Content $_ -Raw }) -join "")
