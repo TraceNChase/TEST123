@@ -1,0 +1,1 @@
+Run the final ProjectAtlas Windows portable build and six-link validation. Trigger nonce: 2026-07-29T12:30Z.
