@@ -1,1 +1,1 @@
-Run final byte audit for all source segments. Retry nonce 2026-07-29T12:37Z.
+Verify repaired ProjectAtlas source segments. Nonce 2026-07-29T12:42Z.
