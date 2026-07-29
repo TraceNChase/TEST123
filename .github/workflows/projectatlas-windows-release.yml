@@ -23,6 +23,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force project-atlas | Out-Null
+          New-Item -ItemType Directory -Force project-atlas-stage | Out-Null
           $encoded = ((0..4 | ForEach-Object { Get-Content ("project-atlas-source.part{0:D2}" -f $_) -Raw }) -join "")
           $encoded = [Regex]::Replace($encoded, "[^A-Za-z0-9+/]", "")
           switch ($encoded.Length % 4) {
@@ -34,7 +35,17 @@ jobs:
           $actual = (Get-FileHash project-atlas-source.tar.gz -Algorithm SHA256).Hash.ToLower()
           $expected = "dbe417a178b71cd7f07aa11787d32b5af889444e69d8cb6c1e92c677ab99c081"
           if ($actual -ne $expected) { throw "Source archive SHA-256 mismatch: $actual" }
-          tar -xzf project-atlas-source.tar.gz -C project-atlas
+          Write-Host "Verified source payload: $actual"
+          & 7z x project-atlas-source.tar.gz "-oproject-atlas-stage" -y
+          if ($LASTEXITCODE -ne 0) { throw "Could not decompress the verified gzip payload" }
+          $inner = Get-ChildItem project-atlas-stage -File | Select-Object -First 1
+          if (!$inner) { throw "The gzip payload did not contain an inner archive" }
+          Write-Host "Inner payload: $($inner.Name), $($inner.Length) bytes"
+          Format-Hex -Path $inner.FullName -Count 64
+          & 7z x $inner.FullName "-oproject-atlas" -y
+          if ($LASTEXITCODE -ne 0) { throw "Could not extract inner source payload $($inner.Name)" }
+          if (!(Test-Path project-atlas\requirements-dev.txt)) { throw "Extracted source tree is missing requirements-dev.txt" }
+          if (!(Test-Path project-atlas\atlas\cli.py)) { throw "Extracted source tree is missing atlas/cli.py" }
 
       - uses: actions/setup-python@v5
         with:
