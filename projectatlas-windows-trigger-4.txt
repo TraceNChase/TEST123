@@ -1,1 +1,1 @@
-Trigger Windows build with verified split segments and final source ZIP hash validation.
+Synchronize PR after workflow update; use verified split segments and final source ZIP hash validation.
