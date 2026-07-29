@@ -1,1 +1,1 @@
-Trigger Windows rebuild after replacing tar assumptions with verified 7-Zip format detection.
+Trigger Windows build from the byte-verified ProjectAtlas source ZIP.
