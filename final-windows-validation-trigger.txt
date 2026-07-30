@@ -1,0 +1,1 @@
+Trigger the final ProjectAtlas Windows build and six-link validation from a branch based on the fully staged test repository main branch.
